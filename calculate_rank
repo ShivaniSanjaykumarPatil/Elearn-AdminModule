@@ -1,0 +1,49 @@
+drop function if exists calculate_rank;
+delimiter //
+create function calculate_rank (p_student_email varchar (40), p_course_name varchar (40))
+returns varchar(40)
+begin
+	declare mark int;
+	declare rnk int;
+	declare ans varchar(40); 
+	declare id int;
+
+	if not exists (select * from student_details where student_email=p_student_email) then
+		return 0;
+	else
+
+		if (p_course_name is null) then
+			select dt.sum_of_marks, dt.rank_no into mark, rnk 
+			from (select sum (marks_secured) as sum_of_marks, student_email, RANK() OVER(ORDER BY sum(marks_secured)desc) as rank_no 
+			from enrolled_courses GROUP BY student_email order by sum(marks_secured)) as dt 
+			where student_email=p_student_email;
+
+			if (mark is null)then
+				select concat(count(*),'-',0) into ans from student_details;
+				return ans;
+			else
+				select concat (rnk,'-',mark) into ans;
+				return ans;
+
+			end if;
+		else 
+			select D.course_id into id 
+			from course_details D 
+			inner join enrolled_courses E on D.course_id=E.course_id where D.course_name=p_course_name limit 1; 
+			
+			select dt.sum_of_marks, dt.rank_no into mark, rnk
+			from (select sum(marks_secured) as sum_of_marks, student_email, course_id, RANK() OVER(ORDER BY sum(marks_secured) desc) as rank_no from enrolled_courses where course_id=id GROUP BY student_email order by sum(marks_secured))as dt 
+			where student_email=p_student_email;
+
+			if (mark is NULL) then 
+				select concat(count(*),'-',0) into ans from student_details;
+				return ans;
+			else
+				select concat (rnk,'-',mark) into ans;
+				return ans;
+			end if;
+		end if;
+	end if;
+end;
+//
+delimiter ;
